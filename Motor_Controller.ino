@@ -1,7 +1,8 @@
 /**************************************************************************
+Hardware:
 Wemos D1 mini
-
 L298N Motor Controller
+11.1v(3S) Li-po battery
 
 Blynk library here:
  https://github.com/blynkkk/blynk-library/releases/latest
@@ -20,9 +21,11 @@ Blynk library here:
   Blynk library is licensed under MIT license
   This example code is in public domain.
 
-V0 = 
-V1 = 
-V2 = 
+Blynk Virtual Pin:
+V0 = Joystick
+V1 = Switch for Autopilot mode
+V2 = LED for High speed indicator
+V3 = Switch for Crazy mode
 
 **************************************************************************/
 #include <FS.h>                   //this needs to be first, or it all crashes and burns...
@@ -36,6 +39,8 @@ V2 =
 #include <BlynkSimpleEsp8266.h>
 
 WidgetTerminal terminal(V6);
+WidgetLED led1(V2);
+#define BLYNK_PRINT Serial
 
 boolean reset_flag = false; //Setting data reset flag (true or false)
 
@@ -59,13 +64,18 @@ int ENA = 4; //D2
 int IN1 = 0; //D3
 int IN2 = 2; //D4
 
+int motor_speed = 0;
+
 void setup() {
-// set all the motor control pins to outputs
+  // set all the motor control pins to outputs
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
+  
+  digitalWrite(ENA,LOW);
 
-Serial.begin(115200);
+  // Start serial communication
+  Serial.begin(115200);
   Serial.println("");
 
     if (SPIFFS.begin()) {
@@ -184,34 +194,83 @@ Serial.begin(115200);
     ESP.reset();   //reset and try again
     delay(5000);
     }
+
+    terminal.print("BLYNK connected");
+}
+
+// JOYSTICK
+BLYNK_WRITE(V0) {
+
+  motor_speed = param.asInt();
+  Serial.println(motor_speed);
+
+// turn on motors
+  if (motor_speed > 200) {
+    digitalWrite(IN1,HIGH);
+    digitalWrite(IN2,LOW);
+
+    terminal.print("Forward Speed: ");
+    terminal.println(motor_speed);
+    analogWrite(ENA, motor_speed);
+
+    if  (motor_speed > 750) {
+      led1.on();
+      Serial.println("High Speed");
+      }
+      else {
+        led1.off();
+        }
+  }
+  else if (motor_speed < -200) {
+    digitalWrite(IN1,LOW);
+    digitalWrite(IN2, HIGH);
+    
+    motor_speed = motor_speed * -1;
+    terminal.print("Backward Speed: ");
+    terminal.println(motor_speed);
+    analogWrite(ENA, motor_speed);
+
+    if  (motor_speed > 750) {
+      led1.on();
+      Serial.println("High Speed");
+      }
+      else {
+        led1.off();
+      }
+       
+  }
+  else {  
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    led1.off();
+  }
   
 }
 
+BLYNK_WRITE(V1) {
+  int buttonState = param.asInt();
+  Serial.print("buttonState =");
+  Serial.println(buttonState);
 
-BLYNK_WRITE(V0) {
-// turn on motors
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
+  if (buttonState == 1) {
+    terminal.println("###### AutoPilot Mode ON ######");
+    Serial.println("###### AutoPilot Mode ON ######");
+    digitalWrite(IN1,HIGH);
+    digitalWrite(IN2,LOW);
+    analogWrite(ENA, 800);
+    delay(3000);
+    analogWrite(ENA, 600);
 
-  analogWrite(ENA, param.asInt());
-  Serial.println(param.asInt());
-  terminal.print("Motor value: ");
-  terminal.println(param.asInt());
-  delay(100);
+  } else {
+    Serial.println("AutoPilot OFF");
+    terminal.println("AutoPilot OFF");
+    digitalWrite(IN1,LOW);
+    digitalWrite(IN2,LOW);
+  }
+  
 }
-
-
 
 void loop() {
   Blynk.run();
-  
-  /*
-  Serial.println("Test One");
-  testOne();   
-  delay(1000);   
-  Serial.println("Test Two");
-  testTwo();   
-  delay(5000);
-  */
   
 }
