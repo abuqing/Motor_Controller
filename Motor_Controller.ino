@@ -258,7 +258,7 @@ BLYNK_WRITE(V1) {
     digitalWrite(IN1,HIGH);
     digitalWrite(IN2,LOW);
     analogWrite(ENA, 800);
-    delay(3000);
+    delay(1500);
     analogWrite(ENA, 600);
 
   } else {
